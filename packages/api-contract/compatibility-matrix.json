@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "currentApiContract": "v1",
+  "previousApiBaseline": "v1-compatibility-baseline.json",
+  "clientPairs": [
+    {
+      "id": "legacy-client-current-api",
+      "evidence": "runtime-integration",
+      "testTitle": "keeps legacy and v1 client paths compatible without versioning provider webhooks",
+      "scenarios": [
+        { "method": "GET", "legacyPath": "/api/public/merchants", "currentPath": "/api/v1/public/merchants", "operationId": "PublicController_merchants" },
+        { "method": "POST", "legacyPath": "/api/auth/login", "currentPath": "/api/v1/auth/login", "operationId": "AuthController_login" },
+        { "method": "GET", "legacyPath": "/api/auth/me", "currentPath": "/api/v1/auth/me", "operationId": "AuthController_me" }
+      ]
+    },
+    {
+      "id": "current-client-current-api",
+      "evidence": "generated-contract-and-build",
+      "sources": [
+        "apps/admin/src/main.tsx",
+        "apps/admin/src/features/workspace-runtime.ts",
+        "apps/miniprogram-customer/utils/api-base.ts",
+        "apps/miniprogram-verifier/utils/api-base.ts"
+      ]
+    },
+    {
+      "id": "current-client-previous-api",
+      "evidence": "previous-contract-required-operations",
+      "requiredOperationIds": [
+        "AuthController_login",
+        "AuthController_me",
+        "AuthController_logout",
+        "AuthController_verifierLogin",
+        "AppController_dashboard",
+        "AppController_merchants",
+        "AppController_packages",
+        "AppController_savePackage",
+        "AppController_packageStatus",
+        "AppController_orders",
+        "AppController_vouchers",
+        "AppController_reportAnalytics",
+        "AppController_preview",
+        "AppController_verify",
+        "PublicController_merchants",
+        "PublicController_merchant",
+        "PublicController_packages",
+        "PublicController_createOrder",
+        "PublicController_confirm",
+        "PublicController_voucherPage",
+        "PublicController_dynamicCode",
+        "PublicController_refund",
+        "PublicController_createSupportTicket"
+      ]
+    },
+    {
+      "id": "previous-app-expanded-database",
+      "evidence": "expand-only-migration-policy",
+      "applicationAutoMigration": false,
+      "databaseRollbackOnApplicationRollback": false,
+      "requiresRealPostgresPreproductionEvidence": true
+    }
+  ]
+}

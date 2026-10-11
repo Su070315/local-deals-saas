@@ -1,0 +1,158 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: local_deals
+      POSTGRES_USER: localdeals
+      POSTGRES_PASSWORD: localdeals
+      TZ: UTC
+      PGTZ: UTC
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U localdeals -d local_deals"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    command: ["node", "apps/api/dist/migration-runner.js"]
+    environment:
+      NODE_ENV: development
+      TZ: UTC
+      DATABASE_URL: postgres://localdeals:localdeals@postgres:5432/local_deals
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # Keep request-serving API replicas separate from the lifecycle worker. This
+  # makes the local compose environment exercise the same failure boundary as
+  # production: a slow export or worker restart must not take browser traffic
+  # out with it.
+  api-1: &api-runtime
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment: &api-environment
+      NODE_ENV: development
+      TZ: UTC
+      PORT: 3001
+      DATABASE_URL: postgres://localdeals:localdeals@postgres:5432/local_deals
+      ALLOW_DEMO_MODE: "true"
+      JWT_SECRET: compose-demo-jwt-secret-change-before-sharing
+      VOUCHER_TOKEN_SECRET: compose-demo-voucher-secret-change-before-sharing
+      # Each local workspace has an independent browser origin and a fixed
+      # build-time role, mirroring the production subdomain boundary.
+      CORS_ORIGINS: http://platform.localhost:5173,http://agency.localhost:5174,http://merchant.localhost:5175,http://verify.localhost:5176
+      WORKSPACE_ORIGIN_ROLES: '{"http://platform.localhost:5173":"PLATFORM_ADMIN","http://agency.localhost:5174":"AGENCY_ADMIN","http://merchant.localhost:5175":"MERCHANT_ADMIN","http://verify.localhost:5176":"STORE_STAFF"}'
+      RUN_MIGRATIONS_ON_STARTUP: "false"
+      RELEASE_ID: local-compose
+      RUN_LIFECYCLE_WORKER: "false"
+      ENABLE_DEMO_CUSTOMER_AUTH: "true"
+      # Browser -> workspace Nginx -> internal API gateway -> API.
+      TRUST_PROXY_HOPS: "2"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -Y off -q -O /dev/null http://127.0.0.1:3001/api/v1/public/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    restart: unless-stopped
+
+  api-2:
+    <<: *api-runtime
+
+  worker:
+    <<: *api-runtime
+    environment:
+      <<: *api-environment
+      RUN_LIFECYCLE_WORKER: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -Y off -q -O /dev/null http://127.0.0.1:3001/api/v1/public/health/worker"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  api-gateway:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./deploy/nginx/api-gateway.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      api-1:
+        condition: service_healthy
+      api-2:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -Y off -q -O /dev/null http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    restart: unless-stopped
+
+  platform:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+      args:
+        VITE_WORKSPACE_ROLE: PLATFORM_ADMIN
+        VITE_RELEASE_ID: local-compose
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    ports:
+      - "5173:80"
+    restart: unless-stopped
+
+  agency:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+      args:
+        VITE_WORKSPACE_ROLE: AGENCY_ADMIN
+        VITE_RELEASE_ID: local-compose
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    ports:
+      - "5174:80"
+    restart: unless-stopped
+
+  merchant:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+      args:
+        VITE_WORKSPACE_ROLE: MERCHANT_ADMIN
+        VITE_RELEASE_ID: local-compose
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    ports:
+      - "5175:80"
+    restart: unless-stopped
+
+  verify:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+      args:
+        VITE_WORKSPACE_ROLE: STORE_STAFF
+        VITE_RELEASE_ID: local-compose
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    ports:
+      - "5176:80"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+coverage/
+*.log
+miniprogram_npm/
+*.local
+backups/
+backup-drills/
+.tools/
+playwright-report/
+test-results/
+artifacts/
+*.tsbuildinfo
+tsc_out.txt

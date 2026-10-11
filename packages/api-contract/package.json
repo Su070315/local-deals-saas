@@ -1,0 +1,12 @@
+{
+  "name": "@local-deals/api-contract",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "exports": {
+    ".": "./src/generated.ts"
+  }
+}

@@ -1,0 +1,12 @@
+node_modules
+**/node_modules
+dist
+**/dist
+.env
+.git
+coverage
+*.log
+miniprogram_npm
+backups
+backup-drills
+artifacts

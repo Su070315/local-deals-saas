@@ -1,0 +1,56 @@
+import type {
+  AuditLog, ExportJob, Merchant, Order, OrderStatus, SupportTicket, SupportTicketReply, User, Verification, Voucher,
+} from './domain/entities';
+import type { AuditOutboxQueueSnapshot } from './audit-outbox.service';
+import type { NotificationOutboxQueueSnapshot } from './notifications/notification-outbox.service';
+
+export type CustomerIdentity = { id: string };
+export type SafeUser = Omit<User, 'passwordHash' | 'sessionVersion'>;
+export type OrderListItem = Omit<Order, 'customerId' | 'idempotencyKey' | 'paymentReference' | 'commissionRateSnapshot'>;
+export type VoucherListItem = Omit<Voucher, 'customerId' | 'commissionRateSnapshot'> & { refundStatus: string | null };
+export type VerificationListItem = Omit<Verification, 'idempotencyKey'>;
+export type TransactionListQuery = { merchantId?: string; page?: number; pageSize?: number };
+export type OrderListQuery = TransactionListQuery & { status?: OrderStatus; keyword?: string; from?: string; to?: string };
+export type ExportQuery = { merchantId?: string; from?: string; to?: string };
+export type ExportJobListItem = Pick<ExportJob, 'id' | 'kind' | 'requestedMerchantId' | 'fromDay' | 'toDay' | 'status' | 'recordCount' | 'artifactSha256' | 'downloadCount' | 'lastDownloadedAt' | 'attemptCount' | 'failureReason' | 'revokedAt' | 'expiresAt' | 'createdAt' | 'updatedAt'>;
+export type ExportQueueSnapshot = { pending: number; processing: number; failed: number; oldestPendingAt: Date | null; oldestProcessingAt: Date | null };
+export type ExpiryQueueSnapshot = { overdueOrders: number; overdueVouchers: number; oldestOverdueOrderAt: Date | null; oldestOverdueVoucherAt: Date | null };
+export type LifecycleSweepResult = {
+  closedOrders: number;
+  expiredVouchers: number;
+  suspendedContracts: number;
+  confirmedBills: number;
+  overdueBills: number;
+  suspendedForOverdueBills: number;
+  purgeEligibleExitCases: number;
+  clearedRequestThrottles: number;
+  clearedLoginThrottles: number;
+  recoveredRefunds: number;
+  failedRefundRecoveries: number;
+  dispatchedPaymentIntents: number;
+  retriedPaymentIntents: number;
+  reconciledPaymentIntents: number;
+  failedPaymentReconciliations: number;
+  reconciledStaleEvents: number;
+  delayedSettlementConfirmations: number;
+  delayedSettlementRetries: number;
+  delayedSettlementQueries: number;
+  staleEntitlementsReleased: number;
+  expiredExportJobs: number;
+  completedExportJobs: number;
+  failedExportJobs: number;
+  exportQueue: ExportQueueSnapshot;
+  expiryQueue: ExpiryQueueSnapshot;
+  signedAuditEvents: number;
+  quarantinedAuditEvents: number;
+  auditOutbox: AuditOutboxQueueSnapshot;
+  sentNotifications: number;
+  failedNotifications: number;
+  notificationOutbox: NotificationOutboxQueueSnapshot;
+};
+export type PaginationQuery = Pick<TransactionListQuery, 'page' | 'pageSize'>;
+export type Paginated<T> = { items: T[]; page: number; pageSize: number; total: number };
+export type AuditLogListItem = Pick<AuditLog, 'id' | 'action' | 'resourceType' | 'resourceId' | 'requestId' | 'createdAt'> & { actorId: string; actorRole: string; ipAddress?: string; userAgent?: string };
+export type SupportTicketReplyListItem = Pick<SupportTicketReply, 'id' | 'ticketId' | 'authorRole' | 'visibility' | 'content' | 'createdAt'>;
+export type SupportTicketListItem = Omit<SupportTicket, 'customerId' | 'contactPhone' | 'submittedBy' | 'idempotencyKey' | 'requestHash' | 'exceptionRefundApprovedBy' | 'exceptionRefundApprovalNote'> & { contactPhone?: string; exceptionRefundApprovedBy?: string | null; exceptionRefundApprovalNote?: string; replyCount: number; latestReplyAt: Date | null };
+export type MerchantListItem = Omit<Merchant, 'createdBy' | 'creationIdempotencyKey' | 'creationRequestHash'>;
